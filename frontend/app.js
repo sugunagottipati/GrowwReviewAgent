@@ -110,7 +110,17 @@ async function runLivePulse(button){
  }catch(error){toast(`Pulse run failed: ${error.message}`)}
  finally{button.disabled=false;button.innerHTML=original}
 }
-$('#generate').addEventListener('click',()=>runLivePulse($('#generate')));$('#run-pulse').addEventListener('click',()=>runLivePulse($('#run-pulse')));$('#deliver').addEventListener('click',()=>toast('Docs updated and Gmail draft created through MCP.'));$$('.outline').forEach(btn=>{if(btn.textContent.includes('Export'))btn.addEventListener('click',()=>toast('Export prepared from the current pulse.'))});
+async function deliverLivePulse(button){
+ if(!API_BASE_URL){toast('Set BACKEND_URL in Vercel to deliver a pulse.');return}
+ const original=button.innerHTML;button.disabled=true;button.textContent='Delivering…';
+ try{
+  const response=await fetch(apiUrl('/api/pulse/deliver'),{method:'POST'});const payload=await response.json();
+  if(!response.ok)throw new Error(payload.error||`API returned ${response.status}`);
+  toast('Docs updated and Gmail draft created through MCP.');
+ }catch(error){toast(`Delivery unavailable: ${error.message}`)}
+ finally{button.disabled=false;button.innerHTML=original}
+}
+$('#generate').addEventListener('click',()=>runLivePulse($('#generate')));$('#run-pulse').addEventListener('click',()=>runLivePulse($('#run-pulse')));$('#deliver').addEventListener('click',()=>deliverLivePulse($('#deliver')));$$('.outline').forEach(btn=>{if(btn.textContent.includes('Export'))btn.addEventListener('click',()=>toast('Export prepared from the current pulse.'))});
 $('.rail-link').addEventListener('click',()=>toast('Documentation is available in the project README.'));
 $$('.top-icon').forEach((button,index)=>button.addEventListener('click',()=>toast(index===0?'No new notifications.':'Settings are managed by the deployment environment.')));
 $$('.head-actions .outline').forEach(button=>{if(!button.textContent.includes('Export'))button.addEventListener('click',()=>toast('Showing the latest 12-week pulse window.'))});

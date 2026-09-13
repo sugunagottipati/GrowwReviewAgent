@@ -80,11 +80,39 @@ class PulseRequestHandler(SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/api/pulse/run":
+        path = urlparse(self.path).path
+        if path == "/api/pulse/deliver":
+            if not os.getenv("GROWW_PULSE_MCP_HTTP_URL"):
+                _json_response(
+                    self,
+                    {
+                        "error": "MCP delivery is not configured on Railway. Configure GROWW_PULSE_MCP_HTTP_URL and a tool caller before delivering.",
+                        "status": "not_configured",
+                    },
+                    status=503,
+                )
+                return
+            _json_response(
+                self,
+                {"error": "MCP delivery client is not implemented for the Railway API yet."},
+                status=501,
+            )
+            return
+        if path != "/api/pulse/run":
             _json_response(self, {"error": "Not found"}, status=404)
             return
         try:
             settings = Settings()
+            if not settings.dry_run and not os.getenv("GROWW_PULSE_MCP_HTTP_URL"):
+                _json_response(
+                    self,
+                    {
+                        "error": "MCP delivery is not configured on Railway. Pulse generation is disabled until a real MCP caller is connected.",
+                        "status": "not_configured",
+                    },
+                    status=503,
+                )
+                return
             run, pulse = _build_orchestrator(settings).execute_run(
                 existing_document_id=os.getenv("EXISTING_GOOGLE_DOC_ID")
             )
