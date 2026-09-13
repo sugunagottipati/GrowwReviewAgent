@@ -1,7 +1,10 @@
 """Unit tests for MCP adapters (Docs and Gmail)."""
 
+import json
+
 import pytest
 
+from groww_pulse.integrations import http_mcp_client
 from groww_pulse.integrations.mcp_adapters import (
     MCPDocsAdapter,
     MCPGmailAdapter,
@@ -203,6 +206,45 @@ class TestMCPGmailAdapter:
 
         # MCP should receive the full subject with [DRY RUN]
         assert captured_calls[0]["subject"] == "[DRY RUN] Test Subject"
+
+
+def test_http_mcp_tool_caller_uses_mcp_protocol_payload(monkeypatch):
+    """The HTTP caller must send the standard MCP tools/call envelope."""
+    seen = {}
+
+    class DummyResponse:
+        def read(self):
+            return json.dumps({
+                "result": {
+                    "content": [{"type": "text", "text": "ok"}],
+                    "structuredContent": {"status": "ok"},
+                }
+            }).encode("utf-8")
+
+    def fake_urlopen(request, timeout=None):
+        seen["url"] = request.full_url
+        seen["payload"] = json.loads(request.data.decode("utf-8"))
+        seen["headers"] = dict(request.headers)
+        return DummyResponse()
+
+    monkeypatch.setattr(http_mcp_client, "urlopen", fake_urlopen)
+    monkeypatch.delenv("GROWW_PULSE_MCP_BEARER_TOKEN", raising=False)
+
+    caller = http_mcp_client.make_http_mcp_tool_caller("https://example.com/mcp")
+    result = caller(
+        "google_docs",
+        "google_docs_append_content",
+        {"documentId": "doc_123", "content": "hello"},
+    )
+
+    assert seen["url"] == "https://example.com/mcp"
+    assert seen["payload"]["method"] == "tools/call"
+    assert seen["payload"]["params"] == {
+        "name": "google_docs_append_content",
+        "arguments": {"documentId": "doc_123", "content": "hello"},
+    }
+    assert "server" not in seen["payload"]["params"]
+    assert result["structuredContent"]["status"] == "ok"
 
 
 class TestMCPToolError:
