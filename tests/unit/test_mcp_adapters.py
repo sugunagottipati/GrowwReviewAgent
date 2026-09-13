@@ -243,6 +243,7 @@ def test_http_mcp_tool_caller_uses_mcp_protocol_payload(monkeypatch):
         "name": "google_docs_append_content",
         "arguments": {"documentId": "doc_123", "content": "hello"},
     }
+    assert seen["headers"]["Accept"] == "application/json, text/event-stream"
     assert "server" not in seen["payload"]["params"]
     assert result["structuredContent"]["status"] == "ok"
 

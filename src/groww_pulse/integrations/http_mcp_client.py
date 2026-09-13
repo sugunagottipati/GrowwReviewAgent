@@ -25,7 +25,10 @@ def make_http_mcp_tool_caller(endpoint: str):
                 "id": uuid.uuid4().hex,
             }
         ).encode("utf-8")
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        }
         token = os.getenv("GROWW_PULSE_MCP_BEARER_TOKEN")
         if token:
             headers["Authorization"] = f"Bearer {token}"
