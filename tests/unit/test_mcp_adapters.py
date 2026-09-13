@@ -70,6 +70,29 @@ class TestMCPDocsAdapter:
                 existing_document_id="doc_123",
             )
 
+    def test_append_document_accepts_structured_content_wrapper(self) -> None:
+        """The transport returns result.structuredContent; adapters normalize it."""
+
+        def mock_tool_caller(server: str, tool: str, args: dict) -> dict:
+            return {
+                "content": [{"type": "text", "text": "ok"}],
+                "structuredContent": {
+                    "success": True,
+                    "documentId": "doc_123",
+                    "appendedCharacters": 7,
+                },
+            }
+
+        adapter = MCPDocsAdapter(mock_tool_caller)
+        doc_id, doc_url = adapter.create_or_update_document(
+            title="Test",
+            content="content",
+            existing_document_id="doc_123",
+        )
+
+        assert doc_id == "doc_123"
+        assert "doc_123" in doc_url
+
     def test_append_document_mcp_error_handling(self) -> None:
         """Test MCP error is caught and re-raised."""
 
@@ -152,6 +175,27 @@ class TestMCPGmailAdapter:
                 subject="Test",
                 body="Body",
             )
+
+    def test_create_draft_accepts_structured_content_wrapper(self) -> None:
+        """The MCP server wraps tool payload in structuredContent for Gmail drafts too."""
+
+        def mock_tool_caller(server: str, tool: str, args: dict) -> dict:
+            return {
+                "content": [{"type": "text", "text": "ok"}],
+                "structuredContent": {
+                    "success": True,
+                    "draftId": "draft_abc123",
+                },
+            }
+
+        adapter = MCPGmailAdapter(mock_tool_caller)
+        draft_id = adapter.create_draft(
+            to_address="test@example.com",
+            subject="Test",
+            body="Body",
+        )
+
+        assert draft_id == "draft_abc123"
     def test_create_draft_mcp_error_handling(self) -> None:
         """Test MCP error is caught and re-raised."""
 

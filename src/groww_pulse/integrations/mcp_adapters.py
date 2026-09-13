@@ -30,6 +30,22 @@ class MCPDocsAdapter(DocsPort):
         tool_caller(server_name: str, tool_name: str, arguments: dict) -> dict
     """
 
+    @staticmethod
+    def _normalize_response(response: Any) -> dict[str, Any]:
+        """Normalize either a flat result dict or the server's structuredContent wrapper."""
+        if not isinstance(response, dict):
+            return {}
+
+        structured = response.get("structuredContent")
+        if isinstance(structured, dict):
+            normalized = dict(structured)
+            for key, value in response.items():
+                if key != "structuredContent":
+                    normalized.setdefault(key, value)
+            return normalized
+
+        return response
+
     def __init__(
         self,
         tool_caller: Callable[[str, str, dict[str, Any]], dict[str, Any]],
@@ -85,25 +101,26 @@ class MCPDocsAdapter(DocsPort):
                     "addNewline": True,
                 },
             )
+            normalized = self._normalize_response(response)
             
             # Validate response
-            if not response.get("success") or "documentId" not in response:
+            if not normalized.get("success") or "documentId" not in normalized:
                 error_msg = "MCP docs append returned incomplete response (missing success or documentId)"
                 StructuredLogger.error(
                     "mcp_docs_append_failed",
                     error=error_msg,
-                    response_has_success=response.get("success"),
-                    response_has_doc_id="documentId" in response,
+                    response_has_success=normalized.get("success"),
+                    response_has_doc_id="documentId" in normalized,
                 )
                 raise MCPToolError(error_msg)
             
-            doc_id = response["documentId"]
+            doc_id = normalized["documentId"]
             doc_url = f"https://docs.google.com/document/d/{doc_id}/edit"
             
             StructuredLogger.info(
                 "mcp_docs_append_complete",
                 document_id=doc_id,
-                appended_characters=response.get("appendedCharacters", 0),
+                appended_characters=normalized.get("appendedCharacters", 0),
             )
             
             return doc_id, doc_url
@@ -128,6 +145,22 @@ class MCPGmailAdapter(GmailPort):
     The tool_caller should have signature:
         tool_caller(server_name: str, tool_name: str, arguments: dict) -> dict
     """
+
+    @staticmethod
+    def _normalize_response(response: Any) -> dict[str, Any]:
+        """Normalize either a flat result dict or the server's structuredContent wrapper."""
+        if not isinstance(response, dict):
+            return {}
+
+        structured = response.get("structuredContent")
+        if isinstance(structured, dict):
+            normalized = dict(structured)
+            for key, value in response.items():
+                if key != "structuredContent":
+                    normalized.setdefault(key, value)
+            return normalized
+
+        return response
 
     def __init__(
         self,
@@ -177,17 +210,18 @@ class MCPGmailAdapter(GmailPort):
                     "body": body,
                 },
             )
+            normalized = self._normalize_response(response)
             
             # Extract safe response fields only
-            draft_id = response.get("draftId", "")
+            draft_id = normalized.get("draftId", "")
             
-            if not draft_id or not response.get("success"):
+            if not draft_id or not normalized.get("success"):
                 error_msg = "MCP gmail create_draft returned no draftId or success=false"
                 StructuredLogger.error(
                     "mcp_gmail_create_draft_failed",
                     error=error_msg,
-                    response_has_success=response.get("success"),
-                    response_has_draft_id="draftId" in response,
+                    response_has_success=normalized.get("success"),
+                    response_has_draft_id="draftId" in normalized,
                 )
                 raise MCPToolError(error_msg)
             
