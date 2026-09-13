@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+
+RUN pip install --no-cache-dir -e .
+
+COPY Procfile ./
+
+CMD ["sh", "-c", "ARGS=\"--day-of-week ${GROWW_PULSE_SCHEDULE_DAY:-0} --hour ${GROWW_PULSE_SCHEDULE_HOUR:-9} --minute ${GROWW_PULSE_SCHEDULE_MINUTE:-0}\"; if [ -n \"$EXISTING_GOOGLE_DOC_ID\" ]; then ARGS=\"$ARGS --doc-id $EXISTING_GOOGLE_DOC_ID\"; fi; if [ \"${GROWW_PULSE_DRY_RUN:-false}\" = \"true\" ]; then ARGS=\"$ARGS --dry-run\"; fi; exec python -m groww_pulse schedule $ARGS"]
