@@ -1,0 +1,5 @@
+{
+  "framework": null,
+  "buildCommand": "printf 'window.GROWW_API_URL = \"%s\";\\n' \"$BACKEND_URL\" > config.js",
+  "outputDirectory": "."
+}

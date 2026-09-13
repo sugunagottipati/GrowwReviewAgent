@@ -1,10 +1,11 @@
+import json
 import sqlite3
 from collections.abc import Sequence
 from datetime import date, datetime
 from pathlib import Path
 
 from groww_pulse.domain.enums import RunStatus
-from groww_pulse.domain.models import Review, Run
+from groww_pulse.domain.models import Review, Run, WeeklyPulse
 from groww_pulse.storage.base import ReviewRepository, RunRepository
 
 
@@ -52,6 +53,16 @@ class SQLiteRepository(ReviewRepository, RunRepository):
                     error_summary TEXT,
                     model_id TEXT,
                     prompt_version TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pulse_snapshots (
+                    run_id TEXT PRIMARY KEY,
+                    payload TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(run_id) REFERENCES runs(id)
                 )
                 """
             )
@@ -215,3 +226,29 @@ class SQLiteRepository(ReviewRepository, RunRepository):
                 )
                 for row in rows
             ]
+
+    def save_pulse(self, run_id: str, pulse: WeeklyPulse) -> None:
+        """Persist the validated pulse for API consumers and later inspection."""
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO pulse_snapshots (run_id, payload, created_at)
+                VALUES (?, ?, ?)
+                """,
+                (run_id, pulse.model_dump_json(), datetime.now().isoformat()),
+            )
+            conn.commit()
+
+    def get_latest_pulse(self) -> tuple[str, WeeklyPulse] | None:
+        with self._get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT run_id, payload
+                FROM pulse_snapshots
+                ORDER BY created_at DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        if row is None:
+            return None
+        return row["run_id"], WeeklyPulse.model_validate(json.loads(row["payload"]))

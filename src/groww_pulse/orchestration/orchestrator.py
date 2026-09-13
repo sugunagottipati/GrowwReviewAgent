@@ -201,7 +201,7 @@ class RunOrchestrator:
                         "Production MCP delivery requires existing_document_id (pre-created Google Doc ID). "
                         "Pass existing_document_id parameter to execute_run()."
                     )
-                
+
                 if not self.settings.dry_run:
                     doc_id, doc_url = self.docs_port.create_or_update_document(
                         title=f"Groww Weekly Review Pulse - Week Ending {target_week_ending.strftime('%Y-%m-%d')}",
@@ -243,6 +243,8 @@ class RunOrchestrator:
 
             run.status = RunStatus.COMPLETED
             self.run_repo.update_run(run)
+            if hasattr(self.run_repo, "save_pulse"):
+                self.run_repo.save_pulse(run.id, pulse)
             StructuredLogger.info(
                 "run_completed",
                 run_id=run.id,

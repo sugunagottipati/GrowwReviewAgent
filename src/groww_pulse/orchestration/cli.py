@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 import time
 from datetime import date, datetime
@@ -9,8 +10,8 @@ from groww_pulse.collection.models import RawReview
 from groww_pulse.config.settings import Settings
 from groww_pulse.langchain_layer.model_factory import FakeStructuredChatModel, get_chat_model
 from groww_pulse.orchestration.orchestrator import RunOrchestrator
-from groww_pulse.orchestration.run_summary import RunSummary, AlertHandler
-from groww_pulse.orchestration.scheduler import RunScheduler, SimpleScheduler
+from groww_pulse.orchestration.run_summary import AlertHandler, RunSummary
+from groww_pulse.orchestration.scheduler import RunScheduler
 
 
 def get_default_sample_reviews(cutoff_date: date) -> list[RawReview]:
@@ -144,11 +145,11 @@ def handle_backfill(args: argparse.Namespace) -> int:
 def handle_schedule(args: argparse.Namespace) -> int:
     """Handles the `schedule` CLI command to start background scheduler."""
     print(f"Starting background scheduler (day={args.day_of_week}, hour={args.hour}:{args.minute})...")
-    
+
     try:
         settings = Settings()
         settings.dry_run = args.dry_run
-        
+
         orchestrator = RunOrchestrator(settings)
         scheduler = RunScheduler(
             orchestrator=orchestrator,
@@ -158,11 +159,11 @@ def handle_schedule(args: argparse.Namespace) -> int:
             minute=args.minute,
             existing_document_id=args.doc_id,
         )
-        
+
         scheduler.start()
         print(f"✓ Scheduler started. Next run: {scheduler.get_next_run_time()}")
         print("(Press Ctrl+C to stop)")
-        
+
         try:
             while True:
                 time.sleep(1)
@@ -179,14 +180,14 @@ def handle_schedule(args: argparse.Namespace) -> int:
 def handle_test_schedule(args: argparse.Namespace) -> int:
     """Handles the `test-schedule` CLI command to test a scheduled run once."""
     print("Executing test scheduled run...")
-    
+
     try:
         settings = Settings()
         settings.dry_run = args.dry_run
-        
+
         orchestrator = RunOrchestrator(settings)
         run, pulse = orchestrator.execute_run(existing_document_id=args.doc_id)
-        
+
         # Generate and display summary
         summary = RunSummary(
             run_id=run.id,
@@ -200,16 +201,16 @@ def handle_test_schedule(args: argparse.Namespace) -> int:
             gmail_draft_id=run.gmail_draft_id,
             error_summary=run.error_summary,
         )
-        
+
         print("\n" + summary.operator_message())
-        
+
         # Send alerts if needed
         alert_handler = AlertHandler(enabled=True, channel='log')
         if run.status.value == "failed":
             alert_handler.alert_failed_run(summary)
         elif run.status.value == "blocked":
             alert_handler.alert_blocked_run(summary)
-        
+
         return 0
     except Exception as exc:
         print(f"✗ Test schedule failed: {exc}", file=sys.stderr)
@@ -221,6 +222,14 @@ def handle_web(args: argparse.Namespace) -> int:
     from groww_pulse.web import serve
 
     serve(host=args.host, port=args.port)
+    return 0
+
+
+def handle_api(args: argparse.Namespace) -> int:
+    """Serves the live pulse API and weekly scheduler."""
+    from groww_pulse.web import serve_api
+
+    serve_api(host=args.host, port=args.port)
     return 0
 
 
@@ -336,6 +345,10 @@ def build_parser() -> argparse.ArgumentParser:
     web_parser.add_argument("--host", default="127.0.0.1", help="Bind address")
     web_parser.add_argument("--port", type=int, default=4173, help="Port (default: 4173)")
 
+    api_parser = subparsers.add_parser("api", help="Serve the live pulse API and scheduler")
+    api_parser.add_argument("--host", default="0.0.0.0", help="Bind address")
+    api_parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "8000")), help="Port")
+
     return parser
 
 
@@ -355,6 +368,8 @@ def main() -> None:
         sys.exit(handle_test_schedule(args))
     elif args.command == "web":
         sys.exit(handle_web(args))
+    elif args.command == "api":
+        sys.exit(handle_api(args))
     else:
         parser.print_help()
         sys.exit(1)
