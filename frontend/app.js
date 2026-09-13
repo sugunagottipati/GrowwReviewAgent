@@ -22,10 +22,10 @@ function updateDateLabels(value=new Date()){
  const detailCopy=$('#detail .screen-head p');if(detailCopy)detailCopy.textContent=detailCopy.textContent.replace(/^[^·]+·/,`${shortDate} ·`);
 }
 function updateSyncLabel(run){
- const syncText=$('.sync small');const topSync=$('#top-sync');
- if(!run?.started_at){if(syncText)syncText.textContent='Not synced yet';if(topSync)topSync.textContent='Not synced yet';return}
+ const syncText=$('.sync small');const topContainer=$('.top-sync');const topSync=$('#top-sync');
+ if(!run?.started_at){if(syncText)syncText.textContent='Not synced yet';if(topSync)topSync.textContent='Not synced yet';else if(topContainer)topContainer.lastChild.textContent='Not synced yet';return}
  const elapsed=Math.max(0,Math.floor((Date.now()-new Date(run.started_at).getTime())/60000));const age=elapsed<1?'Just now':`${elapsed}m ago`;
- if(syncText)syncText.textContent=`${age} via Play Store MCP`;if(topSync)topSync.textContent=`Synced ${age}`;
+ if(syncText)syncText.textContent=`${age} via Play Store MCP`;if(topSync)topSync.textContent=`Synced ${age}`;else if(topContainer)topContainer.lastChild.textContent=`Synced ${age}`;
 }
 function updateDashboardMetrics(){
  const cards=$$('.kpis article');const total=reviews.length;const average=total?reviews.reduce((sum,review)=>sum+review.rating,0)/total:0;const positive=total?reviews.filter(review=>review.sentiment==='positive').length/total*100:0;
@@ -46,6 +46,11 @@ function updateRecentRuns(runs){
  const description=container.querySelector('.section-title p');if(description)description.textContent='Pipeline dispatches and health.';
  rows.forEach((row,index)=>{const run=runs[index];row.style.display=run?'':'none';if(!run)return;row.querySelector('span').textContent=new Date(run.started_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});row.querySelector('strong').textContent=`${run.id} · ${run.review_count.toLocaleString()} reviews`});
 }
+function setupRangeSelector(){
+ const button=[...$$('.head-actions .outline')].find(element=>element.textContent.includes('Last 12 weeks'));if(!button)return;
+ const select=document.createElement('select');select.className=button.className;select.setAttribute('aria-label','Pulse time range');[4,8,12].forEach(weeks=>{const option=document.createElement('option');option.value=weeks;option.textContent=`Last ${weeks} weeks`;if(weeks===12)option.selected=true;select.append(option)});button.replaceWith(select);select.addEventListener('change',()=>toast(`Showing the last ${select.value} weeks.`));
+}
+setupRangeSelector();
 setProfile();updateDateLabels();updateSyncLabel();
 function showView(name){$$('.screen').forEach(el=>el.classList.toggle('active',el.id===name));$$('.nav').forEach(el=>el.classList.toggle('active',el.dataset.view===name));const label={dashboard:'Weekly Pulse',detail:'Pulse Detail View',reviews:'Review Explorer',integrations:'Pipeline Hub'}[name];$('#crumb-label').textContent=label;window.scrollTo({top:0,behavior:'smooth'})}
 $$('.nav').forEach(btn=>btn.addEventListener('click',()=>showView(btn.dataset.view)));$$('[data-target]').forEach(btn=>btn.addEventListener('click',()=>showView(btn.dataset.target)));
