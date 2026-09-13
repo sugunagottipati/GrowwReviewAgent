@@ -27,12 +27,13 @@ function updateSyncLabel(run){
  const elapsed=Math.max(0,Math.floor((Date.now()-new Date(run.started_at).getTime())/60000));const age=elapsed<1?'Just now':`${elapsed}m ago`;
  if(syncText)syncText.textContent=`${age} via Play Store MCP`;if(topSync)topSync.textContent=`Synced ${age}`;else if(topContainer)topContainer.lastChild.textContent=`Synced ${age}`;
 }
-function updateCoverageCard(coverage){const card=$$('.kpis article')[3];if(!card)return;card.querySelector('strong').textContent=coverage?coverage.weeks:'—';card.querySelector('.kpi-unit').textContent='weeks';card.querySelector('.muted').textContent=coverage?coverage.label:'No live reviews yet'}
+function updateCoverageCard(coverage){const card=$$('.kpis article')[3];if(!card)return;card.querySelector('strong').textContent=coverage?coverage.weeks:'—';card.querySelector('.kpi-unit').textContent=coverage?(coverage.weeks===1?'week':'weeks'):'';card.querySelector('.muted').textContent=coverage?coverage.label:'No live reviews yet'}
 function parseReviewDate(review){const value=review.reviewedAt||review.reviewed_at||review.date;const date=new Date(value);return Number.isNaN(date.getTime())?null:date}
 function formatWindowDate(date,includeYear=true){return new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:includeYear?'numeric':undefined}).format(date)}
 function buildCoverageWindow(start,end,useConfiguredWindow=false){if(!start||!end)return null;const days=Math.max(1,Math.floor((end-start)/86400000)+(useConfiguredWindow?0:1));return{weeks:Math.max(1,useConfiguredWindow?Math.round(days/7):Math.ceil(days/7)),label:`${formatWindowDate(start,start.getFullYear()!==end.getFullYear())} — ${formatWindowDate(end)}`}}
 function getCoverageWindow(){const dates=reviews.map(parseReviewDate).filter(Boolean).sort((a,b)=>a-b);if(!dates.length)return null;return buildCoverageWindow(dates[0],dates[dates.length-1])}
 function getRunCoverageWindow(run,pulse){const start=run?.cutoff_date?new Date(`${run.cutoff_date}T00:00:00`):null;const endValue=pulse?.week_ending||run?.started_at;const end=endValue?new Date(endValue):null;if(!start||!end||Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))return null;return buildCoverageWindow(start,end,true)}
+function hasPulseContent(pulse){return Array.isArray(pulse?.top_themes)&&pulse.top_themes.length>0&&Array.isArray(pulse?.actions)&&Array.isArray(pulse?.quotes)}
 function updateDashboardMetrics(){
  const cards=$$('.kpis article');const total=reviews.length;const average=total?reviews.reduce((sum,review)=>sum+review.rating,0)/total:0;const positive=total?reviews.filter(review=>review.sentiment==='positive').length/total*100:0;
  if(cards[0])cards[0].querySelector('strong').textContent=total.toLocaleString();
@@ -44,11 +45,13 @@ function updateDashboardMetrics(){
 function clearUnavailablePulse(){
  $$('.theme').forEach(card=>{card.querySelector('h3').textContent='No live pulse yet';card.querySelector('p').textContent='Generate a pulse to load current review themes.';const data=card.querySelector('.theme-data');const quote=card.querySelector('blockquote');if(data)data.style.display='none';if(quote)quote.style.display='none'});
  $$('.directive').forEach(directive=>directive.style.display='none');const actionChip=$('.directives .chip');if(actionChip)actionChip.textContent='0 actions';
+}
+function clearRecentRuns(){
  const runs=$('.runs');if(runs){const description=runs.querySelector('.section-title p');if(description)description.textContent='No completed runs yet.';runs.querySelectorAll('.run').forEach(run=>run.style.display='none')}
 }
 function updateRecentRuns(runs){
  const container=$('.runs');if(!container)return;const rows=container.querySelectorAll('.run');
- if(!runs.length){clearUnavailablePulse();return}
+ if(!runs.length){clearRecentRuns();return}
  const description=container.querySelector('.section-title p');if(description)description.textContent='Pipeline dispatches and health.';
  rows.forEach((row,index)=>{const run=runs[index];row.style.display=run?'':'none';if(!run)return;row.querySelector('span').textContent=new Date(run.started_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});row.querySelector('strong').textContent=`${run.id} · ${run.review_count.toLocaleString()} reviews`});
 }
@@ -87,7 +90,7 @@ async function loadLiveData(){
     updateDateLabels(pulse?.week_ending||new Date());
     updateSyncLabel(payload.run);
     updateCoverageCard(getRunCoverageWindow(payload.run,pulse)||getCoverageWindow());
-    if(pulse){
+    if(hasPulseContent(pulse)){
       $$('.directive').forEach(directive=>directive.style.display='');const actionChip=$('.directives .chip');if(actionChip)actionChip.textContent=`${pulse.actions.length} actions`;
       pulse.top_themes.forEach((theme,index)=>{
        const card=$$('.theme')[index];
