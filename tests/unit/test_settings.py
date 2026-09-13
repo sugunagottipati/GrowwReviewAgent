@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -49,3 +51,26 @@ def test_custom_environment_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.lookback_weeks == 10
     assert settings.dry_run is True
     assert settings.model_id == "gpt-4o"
+
+
+def test_railway_volume_defaults_storage_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("GROWW_PULSE_STORAGE_PATH", raising=False)
+    monkeypatch.setenv("RAILWAY_VOLUME_MOUNT_PATH", str(tmp_path))
+
+    settings = Settings()
+
+    assert settings.storage_path == tmp_path / "groww_pulse.db"
+
+
+def test_storage_path_env_overrides_railway_volume(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    explicit_path = tmp_path / "explicit.db"
+    monkeypatch.setenv("RAILWAY_VOLUME_MOUNT_PATH", str(tmp_path / "volume"))
+    monkeypatch.setenv("GROWW_PULSE_STORAGE_PATH", str(explicit_path))
+
+    settings = Settings()
+
+    assert settings.storage_path == explicit_path

@@ -1,7 +1,15 @@
+import os
 from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _default_storage_path() -> Path:
+    railway_volume = os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+    if railway_volume:
+        return Path(railway_volume) / "groww_pulse.db"
+    return Path("./data/groww_pulse.db")
 
 
 class Settings(BaseSettings):
@@ -36,7 +44,7 @@ class Settings(BaseSettings):
         description="Email address or alias for weekly pulse distribution draft",
     )
     storage_path: Path = Field(
-        default=Path("./data/groww_pulse.db"),
+        default_factory=_default_storage_path,
         description="Filesystem path for the SQLite repository",
     )
 

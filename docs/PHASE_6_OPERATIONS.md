@@ -53,12 +53,14 @@ MODEL_TEMPERATURE=0.0
 MODEL_TIMEOUT_SEC=60
 
 # Storage
-STORAGE_PATH="/var/lib/groww/pulse_runs.db"
+GROWW_PULSE_STORAGE_PATH="/data/groww_pulse.db"
 
 # Logging
 LOG_LEVEL="INFO"
 DRY_RUN=false
 ```
+
+On Railway, attach a persistent volume before the first live pull. If `GROWW_PULSE_STORAGE_PATH` is not set, the app uses `$RAILWAY_VOLUME_MOUNT_PATH/groww_pulse.db` when Railway provides that variable. Keeping SQLite on the volume allows the API to serve the latest pulled reviews and pulse snapshots after a backend redeploy, until the next scheduled or manual pull replaces them.
 
 ### 2. Create Pre-requisite Google Doc
 

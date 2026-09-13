@@ -27,12 +27,18 @@ function updateSyncLabel(run){
  const elapsed=Math.max(0,Math.floor((Date.now()-new Date(run.started_at).getTime())/60000));const age=elapsed<1?'Just now':`${elapsed}m ago`;
  if(syncText)syncText.textContent=`${age} via Play Store MCP`;if(topSync)topSync.textContent=`Synced ${age}`;else if(topContainer)topContainer.lastChild.textContent=`Synced ${age}`;
 }
+function updateCoverageCard(coverage){const card=$$('.kpis article')[3];if(!card)return;card.querySelector('strong').textContent=coverage?coverage.weeks:'—';card.querySelector('.kpi-unit').textContent='weeks';card.querySelector('.muted').textContent=coverage?coverage.label:'No live reviews yet'}
+function parseReviewDate(review){const value=review.reviewedAt||review.reviewed_at||review.date;const date=new Date(value);return Number.isNaN(date.getTime())?null:date}
+function formatWindowDate(date,includeYear=true){return new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:includeYear?'numeric':undefined}).format(date)}
+function buildCoverageWindow(start,end,useConfiguredWindow=false){if(!start||!end)return null;const days=Math.max(1,Math.floor((end-start)/86400000)+(useConfiguredWindow?0:1));return{weeks:Math.max(1,useConfiguredWindow?Math.round(days/7):Math.ceil(days/7)),label:`${formatWindowDate(start,start.getFullYear()!==end.getFullYear())} — ${formatWindowDate(end)}`}}
+function getCoverageWindow(){const dates=reviews.map(parseReviewDate).filter(Boolean).sort((a,b)=>a-b);if(!dates.length)return null;return buildCoverageWindow(dates[0],dates[dates.length-1])}
+function getRunCoverageWindow(run,pulse){const start=run?.cutoff_date?new Date(`${run.cutoff_date}T00:00:00`):null;const endValue=pulse?.week_ending||run?.started_at;const end=endValue?new Date(endValue):null;if(!start||!end||Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))return null;return buildCoverageWindow(start,end,true)}
 function updateDashboardMetrics(){
  const cards=$$('.kpis article');const total=reviews.length;const average=total?reviews.reduce((sum,review)=>sum+review.rating,0)/total:0;const positive=total?reviews.filter(review=>review.sentiment==='positive').length/total*100:0;
  if(cards[0])cards[0].querySelector('strong').textContent=total.toLocaleString();
  if(cards[1])cards[1].querySelector('strong').innerHTML=total?`${average.toFixed(1)} <em>★</em>`:'—';
  if(cards[2])cards[2].querySelector('strong').textContent=total?`${positive.toFixed(1)}%`:'—';
- if(cards[3]){cards[3].querySelector('strong').textContent='—';cards[3].querySelector('.kpi-unit').textContent='weeks';cards[3].querySelector('.muted').textContent=total?'Live review window':'No live reviews yet'}
+ updateCoverageCard(getCoverageWindow());
  const count=$('.nav[data-view="reviews"] i');if(count)count.textContent=total.toLocaleString();
 }
 function clearUnavailablePulse(){
@@ -80,6 +86,7 @@ async function loadLiveData(){
     const pulse=payload.pulse;
     updateDateLabels(pulse?.week_ending||new Date());
     updateSyncLabel(payload.run);
+    updateCoverageCard(getRunCoverageWindow(payload.run,pulse)||getCoverageWindow());
     if(pulse){
       $$('.directive').forEach(directive=>directive.style.display='');const actionChip=$('.directives .chip');if(actionChip)actionChip.textContent=`${pulse.actions.length} actions`;
       pulse.top_themes.forEach((theme,index)=>{

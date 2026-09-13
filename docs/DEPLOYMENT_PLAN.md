@@ -99,6 +99,8 @@ GROWW_PULSE_MCP_GMAIL_SERVER_NAME=gmail
 GROWW_PULSE_MCP_GMAIL_TOOL_CREATE_DRAFT=create_draft
 ```
 
+For SQLite deployments, attach a Railway volume before the first live pull. When Railway exposes `RAILWAY_VOLUME_MOUNT_PATH`, the app now defaults SQLite to `$RAILWAY_VOLUME_MOUNT_PATH/groww_pulse.db`; otherwise set `GROWW_PULSE_STORAGE_PATH` to a path on the mounted volume, such as `/data/groww_pulse.db`. Without persistent storage, redeploys start with a fresh empty database and the frontend has no latest pull to display.
+
 Provider secrets depend on the selected model provider. Add only the one being used:
 
 ```bash
@@ -118,7 +120,7 @@ EXISTING_GOOGLE_DOC_ID=...
 1. Create a new Railway project from the GitHub repository.
 2. Select the repository root as the service root.
 3. Configure Python runtime to use Python 3.11 or 3.12.
-4. Add a Railway volume mounted at `/data` if using SQLite.
+4. Add a Railway volume mounted at `/data` if using SQLite, or rely on Railway's `RAILWAY_VOLUME_MOUNT_PATH` value and leave `GROWW_PULSE_STORAGE_PATH` unset.
 5. Set the start command based on selected backend mode.
 
 Worker-only start command:
