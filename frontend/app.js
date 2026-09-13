@@ -13,6 +13,21 @@ const API_BASE_URL=configuredApiUrl&&!/^https?:\/\//i.test(configuredApiUrl)
 const $=s=>document.querySelector(s);const $$=s=>document.querySelectorAll(s);
 function apiUrl(path){return `${API_BASE_URL}${path}`}
 function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800)}
+function setProfile(){const profile=$('.user');if(!profile)return;profile.querySelector('span').textContent='DG';profile.querySelector('b').textContent='Deeptika Gottipati'}
+function formatPulseDate(value){const date=new Date(value);if(Number.isNaN(date.getTime()))return '';const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}).formatToParts(date).map(part=>[part.type,part.value]));return `${parts.weekday}, ${parts.day} ${parts.month} ${parts.year}`.toUpperCase()}
+function updateDateLabels(value=new Date()){
+ const date=new Date(value);if(Number.isNaN(date.getTime()))return;
+ const longDate=formatPulseDate(date);const shortDate=new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'long',year:'numeric'}).format(date);
+ const dashboardLabel=$('#dashboard .screen-head label');if(dashboardLabel)dashboardLabel.textContent=longDate;
+ const detailCopy=$('#detail .screen-head p');if(detailCopy)detailCopy.textContent=detailCopy.textContent.replace(/^[^·]+·/,`${shortDate} ·`);
+}
+function updateSyncLabel(run){
+ const syncText=$('.sync small');const topSync=$('#top-sync');
+ if(!run?.started_at){if(syncText)syncText.textContent='Not synced yet';if(topSync)topSync.textContent='Not synced yet';return}
+ const elapsed=Math.max(0,Math.floor((Date.now()-new Date(run.started_at).getTime())/60000));const age=elapsed<1?'Just now':`${elapsed}m ago`;
+ if(syncText)syncText.textContent=`${age} via Play Store MCP`;if(topSync)topSync.textContent=`Synced ${age}`;
+}
+setProfile();updateDateLabels();updateSyncLabel();
 function showView(name){$$('.screen').forEach(el=>el.classList.toggle('active',el.id===name));$$('.nav').forEach(el=>el.classList.toggle('active',el.dataset.view===name));const label={dashboard:'Weekly Pulse',detail:'Pulse Detail View',reviews:'Review Explorer',integrations:'Pipeline Hub'}[name];$('#crumb-label').textContent=label;window.scrollTo({top:0,behavior:'smooth'})}
 $$('.nav').forEach(btn=>btn.addEventListener('click',()=>showView(btn.dataset.view)));$$('[data-target]').forEach(btn=>btn.addEventListener('click',()=>showView(btn.dataset.target)));
 function renderReviews(){const query=($('#search')?.value||'').toLowerCase();const sentiment=$('#sentiment')?.value||'all';const rating=$('#rating')?.value||'all';const filtered=reviews.filter(r=>(!query||r.text.toLowerCase().includes(query)||r.theme.toLowerCase().includes(query))&&(sentiment==='all'||r.sentiment===sentiment)&&(rating==='all'||String(r.rating)===rating));$('#review-rows').innerHTML=filtered.map((r,i)=>`<tr data-index="${reviews.indexOf(r)}"><td class="stars">${'★'.repeat(r.rating)}<span style="color:#dfe4eb">${'★'.repeat(5-r.rating)}</span></td><td class="review-copy">${r.text}</td><td><span class="tag">${r.theme}</span></td><td><span class="risk ${r.sentiment==='positive'?'watch':r.sentiment==='negative'?'critical':'high'}">${r.sentiment.toUpperCase()}</span></td><td>${r.date}</td><td>→</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;padding:35px;color:#8792a1">No reviews match these filters.</td></tr>';$('#shown').textContent=filtered.length;$$('#review-rows tr[data-index]').forEach(row=>row.addEventListener('click',()=>openDrawer(reviews[row.dataset.index])))}
@@ -37,6 +52,8 @@ async function loadLiveData(){
    if(pulseResponse.ok){
     const payload=await pulseResponse.json();
     const pulse=payload.pulse;
+    updateDateLabels(pulse?.week_ending||new Date());
+    updateSyncLabel(payload.run);
     if(pulse){
       pulse.top_themes.forEach((theme,index)=>{
        const card=$$('.theme')[index];
