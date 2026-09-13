@@ -6,15 +6,28 @@ import argparse
 import functools
 import json
 import os
+from datetime import date
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from groww_pulse.collection.fixture_collector import FixtureReviewCollector
+from groww_pulse.collection.google_play_collector import GooglePlayReviewCollector
 from groww_pulse.config.settings import Settings
 from groww_pulse.orchestration.orchestrator import RunOrchestrator
 from groww_pulse.storage.sqlite_repository import SQLiteRepository
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
+
+
+def _build_orchestrator(settings: Settings) -> RunOrchestrator:
+    if settings.dry_run:
+        from groww_pulse.orchestration.cli import get_default_sample_reviews
+
+        collector = FixtureReviewCollector(fixtures=get_default_sample_reviews(date.today()))
+    else:
+        collector = GooglePlayReviewCollector()
+    return RunOrchestrator(settings=settings, collector=collector)
 
 
 def _json_response(handler: SimpleHTTPRequestHandler, payload: object, status: int = 200) -> None:
@@ -72,7 +85,7 @@ class PulseRequestHandler(SimpleHTTPRequestHandler):
             return
         try:
             settings = Settings()
-            run, pulse = RunOrchestrator(settings=settings).execute_run(
+            run, pulse = _build_orchestrator(settings).execute_run(
                 existing_document_id=os.getenv("EXISTING_GOOGLE_DOC_ID")
             )
             _json_response(
@@ -105,7 +118,7 @@ def serve(host: str = "127.0.0.1", port: int = 4173) -> None:
 def serve_api(host: str = "0.0.0.0", port: int = 8000) -> None:
     """Serve the API and keep the weekly scheduler running in the same process."""
     settings = Settings()
-    scheduler_orchestrator = RunOrchestrator(settings=settings)
+    scheduler_orchestrator = _build_orchestrator(settings)
     from groww_pulse.orchestration.scheduler import RunScheduler
 
     scheduler = RunScheduler(
