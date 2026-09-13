@@ -93,6 +93,29 @@ class TestMCPDocsAdapter:
         assert doc_id == "doc_123"
         assert "doc_123" in doc_url
 
+    def test_append_document_accepts_text_content_fallback(self) -> None:
+        """The adapter extracts the JSON payload when structuredContent is absent."""
+
+        def mock_tool_caller(server: str, tool: str, args: dict) -> dict:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps({"success": True, "documentId": "doc_123"}),
+                    }
+                ]
+            }
+
+        adapter = MCPDocsAdapter(mock_tool_caller)
+        doc_id, doc_url = adapter.create_or_update_document(
+            title="Test",
+            content="content",
+            existing_document_id="doc_123",
+        )
+
+        assert doc_id == "doc_123"
+        assert "doc_123" in doc_url
+
     def test_append_document_mcp_error_handling(self) -> None:
         """Test MCP error is caught and re-raised."""
 

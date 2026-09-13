@@ -9,6 +9,7 @@ MCP Client Interface Requirement:
 - Authentication and server lifecycle are managed outside these adapters
 """
 
+import json
 from typing import Any, Callable
 
 from groww_pulse.integrations.base import DocsPort, GmailPort
@@ -19,6 +20,46 @@ class MCPToolError(Exception):
     """Exception raised when MCP tool invocation fails."""
 
     pass
+
+
+def _normalize_mcp_response(response: Any) -> dict[str, Any]:
+    """Normalize structured and text-only MCP tool result payloads."""
+    if not isinstance(response, dict):
+        return {}
+
+    result = response.get("result")
+    if isinstance(result, dict):
+        response = result
+
+    structured = response.get("structuredContent")
+    if isinstance(structured, dict):
+        normalized = dict(structured)
+    else:
+        normalized = {}
+
+    content = response.get("content")
+    if isinstance(content, str):
+        content_items = [{"text": content}]
+    elif isinstance(content, list):
+        content_items = content
+    else:
+        content_items = []
+
+    for item in content_items:
+        if not isinstance(item, dict) or not isinstance(item.get("text"), str):
+            continue
+        try:
+            text_payload = json.loads(item["text"])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(text_payload, dict):
+            for key, value in text_payload.items():
+                normalized.setdefault(key, value)
+
+    for key, value in response.items():
+        if key not in {"structuredContent", "content", "result"}:
+            normalized.setdefault(key, value)
+    return normalized
 
 
 class MCPDocsAdapter(DocsPort):
@@ -33,18 +74,7 @@ class MCPDocsAdapter(DocsPort):
     @staticmethod
     def _normalize_response(response: Any) -> dict[str, Any]:
         """Normalize either a flat result dict or the server's structuredContent wrapper."""
-        if not isinstance(response, dict):
-            return {}
-
-        structured = response.get("structuredContent")
-        if isinstance(structured, dict):
-            normalized = dict(structured)
-            for key, value in response.items():
-                if key != "structuredContent":
-                    normalized.setdefault(key, value)
-            return normalized
-
-        return response
+        return _normalize_mcp_response(response)
 
     def __init__(
         self,
@@ -149,18 +179,7 @@ class MCPGmailAdapter(GmailPort):
     @staticmethod
     def _normalize_response(response: Any) -> dict[str, Any]:
         """Normalize either a flat result dict or the server's structuredContent wrapper."""
-        if not isinstance(response, dict):
-            return {}
-
-        structured = response.get("structuredContent")
-        if isinstance(structured, dict):
-            normalized = dict(structured)
-            for key, value in response.items():
-                if key != "structuredContent":
-                    normalized.setdefault(key, value)
-            return normalized
-
-        return response
+        return _normalize_mcp_response(response)
 
     def __init__(
         self,
