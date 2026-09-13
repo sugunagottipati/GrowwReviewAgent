@@ -27,6 +27,25 @@ function updateSyncLabel(run){
  const elapsed=Math.max(0,Math.floor((Date.now()-new Date(run.started_at).getTime())/60000));const age=elapsed<1?'Just now':`${elapsed}m ago`;
  if(syncText)syncText.textContent=`${age} via Play Store MCP`;if(topSync)topSync.textContent=`Synced ${age}`;
 }
+function updateDashboardMetrics(){
+ const cards=$$('.kpis article');const total=reviews.length;const average=total?reviews.reduce((sum,review)=>sum+review.rating,0)/total:0;const positive=total?reviews.filter(review=>review.sentiment==='positive').length/total*100:0;
+ if(cards[0])cards[0].querySelector('strong').textContent=total.toLocaleString();
+ if(cards[1])cards[1].querySelector('strong').innerHTML=total?`${average.toFixed(1)} <em>★</em>`:'—';
+ if(cards[2])cards[2].querySelector('strong').textContent=total?`${positive.toFixed(1)}%`:'—';
+ if(cards[3]){cards[3].querySelector('strong').textContent='—';cards[3].querySelector('.kpi-unit').textContent='weeks';cards[3].querySelector('.muted').textContent=total?'Live review window':'No live reviews yet'}
+ const count=$('.nav[data-view="reviews"] i');if(count)count.textContent=total.toLocaleString();
+}
+function clearUnavailablePulse(){
+ $$('.theme').forEach(card=>{card.querySelector('h3').textContent='No live pulse yet';card.querySelector('p').textContent='Generate a pulse to load current review themes.';const data=card.querySelector('.theme-data');const quote=card.querySelector('blockquote');if(data)data.style.display='none';if(quote)quote.style.display='none'});
+ $$('.directive').forEach(directive=>directive.style.display='none');const actionChip=$('.directives .chip');if(actionChip)actionChip.textContent='0 actions';
+ const runs=$('.runs');if(runs){const description=runs.querySelector('.section-title p');if(description)description.textContent='No completed runs yet.';runs.querySelectorAll('.run').forEach(run=>run.style.display='none')}
+}
+function updateRecentRuns(runs){
+ const container=$('.runs');if(!container)return;const rows=container.querySelectorAll('.run');
+ if(!runs.length){clearUnavailablePulse();return}
+ const description=container.querySelector('.section-title p');if(description)description.textContent='Pipeline dispatches and health.';
+ rows.forEach((row,index)=>{const run=runs[index];row.style.display=run?'':'none';if(!run)return;row.querySelector('span').textContent=new Date(run.started_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});row.querySelector('strong').textContent=`${run.id} · ${run.review_count.toLocaleString()} reviews`});
+}
 setProfile();updateDateLabels();updateSyncLabel();
 function showView(name){$$('.screen').forEach(el=>el.classList.toggle('active',el.id===name));$$('.nav').forEach(el=>el.classList.toggle('active',el.dataset.view===name));const label={dashboard:'Weekly Pulse',detail:'Pulse Detail View',reviews:'Review Explorer',integrations:'Pipeline Hub'}[name];$('#crumb-label').textContent=label;window.scrollTo({top:0,behavior:'smooth'})}
 $$('.nav').forEach(btn=>btn.addEventListener('click',()=>showView(btn.dataset.view)));$$('[data-target]').forEach(btn=>btn.addEventListener('click',()=>showView(btn.dataset.target)));
@@ -38,15 +57,17 @@ async function loadLiveData(){
   const response=await fetch(apiUrl('/api/reviews'));
   if(!response.ok)throw new Error(`API returned ${response.status}`);
   const payload=await response.json();
-  if(Array.isArray(payload.reviews)&&payload.reviews.length){
-   reviews=payload.reviews.map(review=>({
+    if(Array.isArray(payload.reviews)){
+    reviews=payload.reviews.map(review=>({
 	rating:review.rating,
 	text:review.text,
 	theme:review.title||'Product feedback',
 	sentiment:review.rating>=4?'positive':review.rating<=2?'negative':'mixed',
-	date:new Date(review.reviewed_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+    date:new Date(review.reviewed_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),
+    reviewedAt:review.reviewed_at
    }));
    renderReviews();
+    updateDashboardMetrics();
   }
    const pulseResponse=await fetch(apiUrl('/api/pulse'));
    if(pulseResponse.ok){
@@ -55,16 +76,19 @@ async function loadLiveData(){
     updateDateLabels(pulse?.week_ending||new Date());
     updateSyncLabel(payload.run);
     if(pulse){
+      $$('.directive').forEach(directive=>directive.style.display='');const actionChip=$('.directives .chip');if(actionChip)actionChip.textContent=`${pulse.actions.length} actions`;
       pulse.top_themes.forEach((theme,index)=>{
        const card=$$('.theme')[index];
        if(!card)return;
+       const data=card.querySelector('.theme-data');const quote=card.querySelector('blockquote');if(data)data.style.display='';if(quote)quote.style.display='';
        const title=card.querySelector('h3');
        const summary=card.querySelector('p');
        if(title)title.textContent=theme.label;
        if(summary)summary.textContent=`${theme.review_count} reviews · ${Math.round(theme.share_of_reviews*100)}% of sample · ${theme.sentiment} sentiment.`;
       });
-    }
+    }else clearUnavailablePulse();
    }
+    const runsResponse=await fetch(apiUrl('/api/runs'));if(runsResponse.ok){const runsPayload=await runsResponse.json();updateRecentRuns(runsPayload.runs||[])}
  }catch(error){console.warn('Live data unavailable; using fixture reviews.',error)}
 }
 loadLiveData();
