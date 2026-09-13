@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+
+# Local runtime data
+*.db
+*.sqlite3
+data/*.db
+
+# Coverage / logs
+.coverage
+htmlcov/
+*.log
+
+# Editors
+.vscode/
+.DS_Store
