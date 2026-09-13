@@ -21,6 +21,7 @@ class RunScheduler:
         day_of_week: str = "0",  # Monday
         hour: int = 9,
         minute: int = 0,
+        existing_document_id: str | None = None,
     ) -> None:
         """Initialize scheduler.
         
@@ -30,11 +31,13 @@ class RunScheduler:
             day_of_week: Cron day of week (0=Monday, 6=Sunday)
             hour: Hour to run (0-23)
             minute: Minute to run (0-59)
+            existing_document_id: Google Doc ID passed through to each run
         """
         self.orchestrator = orchestrator
         self.day_of_week = day_of_week
         self.hour = hour
         self.minute = minute
+        self.existing_document_id = existing_document_id
         self.scheduler = BackgroundScheduler()
     
     def start(self) -> None:
@@ -85,8 +88,11 @@ class RunScheduler:
     def _run_pulse(self) -> None:
         """Execute the pulse generation run."""
         try:
-            StructuredLogger.info("scheduled_run_started")
-            run, pulse = self.orchestrator.execute_run()
+            StructuredLogger.info(
+                "scheduled_run_started",
+                existing_document_id=self.existing_document_id,
+            )
+            run, pulse = self.orchestrator.execute_run(existing_document_id=self.existing_document_id)
             StructuredLogger.info(
                 "scheduled_run_completed",
                 run_id=run.id,
@@ -108,6 +114,7 @@ class SimpleScheduler:
         day_of_week: str = "0",
         hour: int = 9,
         minute: int = 0,
+        existing_document_id: str | None = None,
     ) -> None:
         """Initialize simple scheduler.
         
@@ -116,11 +123,13 @@ class SimpleScheduler:
             day_of_week: Cron day of week
             hour: Hour to run
             minute: Minute to run
+            existing_document_id: Google Doc ID passed through to each run
         """
         self.orchestrator = orchestrator
         self.day_of_week = int(day_of_week)  # 0=Monday
         self.hour = hour
         self.minute = minute
+        self.existing_document_id = existing_document_id
     
     def should_run(self, now: datetime | None = None) -> bool:
         """Check if run should execute at given time."""
@@ -142,7 +151,7 @@ class SimpleScheduler:
             return None
         
         try:
-            run, pulse = self.orchestrator.execute_run()
+            run, pulse = self.orchestrator.execute_run(existing_document_id=self.existing_document_id)
             return run, pulse
         except Exception as exc:
             StructuredLogger.error(

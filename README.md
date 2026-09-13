@@ -41,7 +41,16 @@ groww-pulse validate
 
 # Backfill reviews over a specific lookback window (8-12 weeks)
 groww-pulse backfill --weeks 12 --dry-run
+
+# Serve the Review Pulse frontend locally
+groww-pulse web
+# Open http://127.0.0.1:4173
 ```
+
+The frontend is a static local workspace for reviewing the weekly pulse, executive brief,
+source reviews, and MCP delivery telemetry. Its controls use representative fixture data;
+pipeline execution and Google Docs/Gmail delivery continue to run through the existing CLI
+and MCP adapters.
 
 ## Running Tests, Linting, and Type Checking
 

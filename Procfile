@@ -1,0 +1,1 @@
+worker: python -m groww_pulse schedule --day-of-week ${GROWW_PULSE_SCHEDULE_DAY:-0} --hour ${GROWW_PULSE_SCHEDULE_HOUR:-9} --minute ${GROWW_PULSE_SCHEDULE_MINUTE:-0} --doc-id "${EXISTING_GOOGLE_DOC_ID:-}" --dry-run ${GROWW_PULSE_DRY_RUN:-false}

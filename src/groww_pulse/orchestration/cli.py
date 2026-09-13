@@ -156,6 +156,7 @@ def handle_schedule(args: argparse.Namespace) -> int:
             day_of_week=args.day_of_week,
             hour=args.hour,
             minute=args.minute,
+            existing_document_id=args.doc_id,
         )
         
         scheduler.start()
@@ -191,7 +192,7 @@ def handle_test_schedule(args: argparse.Namespace) -> int:
             run_id=run.id,
             status=run.status,
             started_at=run.started_at,
-            completed_at=datetime.now() if run.completed_at else None,
+            completed_at=getattr(run, "completed_at", None) or datetime.now(),
             review_count=run.review_count or 0,
             selected_theme_labels=[] if not pulse else [t.label for t in pulse.themes[:3]],
             document_id=run.document_id,
@@ -213,6 +214,14 @@ def handle_test_schedule(args: argparse.Namespace) -> int:
     except Exception as exc:
         print(f"✗ Test schedule failed: {exc}", file=sys.stderr)
         return 1
+
+
+def handle_web(args: argparse.Namespace) -> int:
+    """Serves the local frontend for product and design review."""
+    from groww_pulse.web import serve
+
+    serve(host=args.host, port=args.port)
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -323,6 +332,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run in dry-run mode",
     )
 
+    web_parser = subparsers.add_parser("web", help="Serve the Review Pulse frontend")
+    web_parser.add_argument("--host", default="127.0.0.1", help="Bind address")
+    web_parser.add_argument("--port", type=int, default=4173, help="Port (default: 4173)")
+
     return parser
 
 
@@ -340,6 +353,8 @@ def main() -> None:
         sys.exit(handle_schedule(args))
     elif args.command == "test-schedule":
         sys.exit(handle_test_schedule(args))
+    elif args.command == "web":
+        sys.exit(handle_web(args))
     else:
         parser.print_help()
         sys.exit(1)
