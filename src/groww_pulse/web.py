@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 from groww_pulse.collection.fixture_collector import FixtureReviewCollector
 from groww_pulse.collection.google_play_collector import GooglePlayReviewCollector
 from groww_pulse.config.settings import Settings
+from groww_pulse.integrations.http_mcp_client import make_http_mcp_tool_caller
+from groww_pulse.integrations.mcp_adapters import MCPDocsAdapter, MCPGmailAdapter
 from groww_pulse.orchestration.orchestrator import RunOrchestrator
 from groww_pulse.storage.sqlite_repository import SQLiteRepository
 
@@ -27,7 +29,24 @@ def _build_orchestrator(settings: Settings) -> RunOrchestrator:
         collector = FixtureReviewCollector(fixtures=get_default_sample_reviews(date.today()))
     else:
         collector = GooglePlayReviewCollector()
-    return RunOrchestrator(settings=settings, collector=collector)
+    endpoint = os.getenv("GROWW_PULSE_MCP_HTTP_URL")
+    if settings.dry_run or not endpoint:
+        return RunOrchestrator(settings=settings, collector=collector)
+    caller = make_http_mcp_tool_caller(endpoint)
+    return RunOrchestrator(
+        settings=settings,
+        collector=collector,
+        docs_port=MCPDocsAdapter(
+            caller,
+            server_name=settings.mcp_docs_server_name,
+            append_tool_name=os.getenv("GROWW_PULSE_MCP_DOCS_TOOL_APPEND", "google_docs_append_content"),
+        ),
+        gmail_port=MCPGmailAdapter(
+            caller,
+            server_name=settings.mcp_gmail_server_name,
+            create_draft_tool_name=os.getenv("GROWW_PULSE_MCP_GMAIL_TOOL_CREATE_DRAFT", "gmail_create_draft"),
+        ),
+    )
 
 
 def _json_response(handler: SimpleHTTPRequestHandler, payload: object, status: int = 200) -> None:
@@ -92,11 +111,32 @@ class PulseRequestHandler(SimpleHTTPRequestHandler):
                     status=503,
                 )
                 return
-            _json_response(
-                self,
-                {"error": "MCP delivery client is not implemented for the Railway API yet."},
-                status=501,
+            latest = self._repository().get_latest_pulse()
+            if latest is None:
+                _json_response(self, {"error": "No completed pulse is available to deliver."}, status=422)
+                return
+            run_id, pulse = latest
+            settings = Settings()
+            run = self._repository().get_run(run_id)
+            caller = make_http_mcp_tool_caller(os.environ["GROWW_PULSE_MCP_HTTP_URL"])
+            docs = MCPDocsAdapter(caller, server_name=settings.mcp_docs_server_name, append_tool_name=os.getenv("GROWW_PULSE_MCP_DOCS_TOOL_APPEND", "google_docs_append_content"))
+            gmail = MCPGmailAdapter(caller, server_name=settings.mcp_gmail_server_name, create_draft_tool_name=os.getenv("GROWW_PULSE_MCP_GMAIL_TOOL_CREATE_DRAFT", "gmail_create_draft"))
+            document_id, document_url = docs.create_or_update_document(
+                title=f"Groww Weekly Review Pulse - Week Ending {pulse.week_ending}",
+                content=pulse.markdown,
+                existing_document_id=run.document_id if run else os.getenv("EXISTING_GOOGLE_DOC_ID"),
             )
+            draft_id = gmail.create_draft(
+                to_address=settings.recipient_alias,
+                subject=f"Groww Weekly Review Pulse - Week Ending {pulse.week_ending}",
+                body=pulse.markdown,
+            )
+            if run:
+                run.document_id = document_id
+                run.document_url = document_url
+                run.gmail_draft_id = draft_id
+                self._repository().update_run(run)
+            _json_response(self, {"status": "delivered", "document_url": document_url, "gmail_draft_id": draft_id}, status=201)
             return
         if path != "/api/pulse/run":
             _json_response(self, {"error": "Not found"}, status=404)
