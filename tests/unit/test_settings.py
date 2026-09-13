@@ -1,0 +1,51 @@
+import pytest
+from pydantic import ValidationError
+
+from groww_pulse.config.settings import Settings
+
+
+def test_default_settings() -> None:
+    settings = Settings()
+    assert settings.app_id == "com.nextbillion.groww"
+    assert settings.lookback_weeks == 12
+    assert settings.locale == "en_IN"
+    assert settings.model_provider == "openai"
+    assert settings.model_id == "gpt-4o-mini"
+    assert settings.dry_run is False
+    assert settings.mcp_docs_server_name == "google_docs"
+    assert settings.mcp_gmail_server_name == "gmail"
+
+
+def test_default_model_rate_limits() -> None:
+    settings = Settings()
+    assert settings.model_requests_per_minute == 30
+    assert settings.model_requests_per_day == 1000
+    assert settings.model_tokens_per_minute == 8000
+    assert settings.model_tokens_per_day == 200000
+
+
+def test_lookback_weeks_boundary() -> None:
+    # 8 and 12 are valid
+    s8 = Settings(lookback_weeks=8)
+    assert s8.lookback_weeks == 8
+
+    s12 = Settings(lookback_weeks=12)
+    assert s12.lookback_weeks == 12
+
+    # < 8 or > 12 are invalid
+    with pytest.raises(ValidationError):
+        Settings(lookback_weeks=7)
+
+    with pytest.raises(ValidationError):
+        Settings(lookback_weeks=13)
+
+
+def test_custom_environment_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GROWW_PULSE_LOOKBACK_WEEKS", "10")
+    monkeypatch.setenv("GROWW_PULSE_DRY_RUN", "true")
+    monkeypatch.setenv("GROWW_PULSE_MODEL_ID", "gpt-4o")
+
+    settings = Settings()
+    assert settings.lookback_weeks == 10
+    assert settings.dry_run is True
+    assert settings.model_id == "gpt-4o"

@@ -1,0 +1,47 @@
+[
+  {
+    "review_id": "syn_rev_001",
+    "rating": 1,
+    "title": "Payment failed via UPI",
+    "text": "UPI payment for Rs 5000 failed from my HDFC bank account but amount was deducted. Fix deposit issues!",
+    "reviewed_at": "2026-08-20T10:30:00Z",
+    "locale": "en_IN",
+    "source_url": "https://play.google.com/store/apps/details?id=com.nextbillion.groww"
+  },
+  {
+    "review_id": "syn_rev_002",
+    "rating": 1,
+    "title": "KYC document rejection",
+    "text": "My KYC has been rejected twice for no reason. Contact me at user.test@example.com or call 9876543210 immediately.",
+    "reviewed_at": "2026-08-19T14:15:00Z",
+    "locale": "en_IN",
+    "source_url": "https://play.google.com/store/apps/details?id=com.nextbillion.groww"
+  },
+  {
+    "review_id": "syn_rev_003",
+    "rating": 2,
+    "title": "Options chart lag",
+    "text": "Options trading candlestick charts freeze right at market open 9:15 AM. Need smoother F&O charting.",
+    "reviewed_at": "2026-08-18T09:20:00Z",
+    "locale": "en_IN",
+    "source_url": "https://play.google.com/store/apps/details?id=com.nextbillion.groww"
+  },
+  {
+    "review_id": "syn_rev_004",
+    "rating": 5,
+    "title": "Smooth mutual fund investing",
+    "text": "App navigation and UI are extremely clean and simple for monthly SIP investments.",
+    "reviewed_at": "2026-08-15T11:00:00Z",
+    "locale": "en_IN",
+    "source_url": "https://play.google.com/store/apps/details?id=com.nextbillion.groww"
+  },
+  {
+    "review_id": "syn_rev_005",
+    "rating": 1,
+    "title": "Hidden charges in F&O",
+    "text": "Brokerage charges and hidden fees are unclear when trading intraday orders.",
+    "reviewed_at": "2026-08-10T16:45:00Z",
+    "locale": "en_IN",
+    "source_url": "https://play.google.com/store/apps/details?id=com.nextbillion.groww"
+  }
+]

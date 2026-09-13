@@ -1,0 +1,47 @@
+name: Weekly Review Pulse
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  generate-weekly-pulse:
+    runs-on: ubuntu-latest
+    env:
+      GROWW_PULSE_MODEL_PROVIDER: openai
+      GROWW_PULSE_MODEL_ID: gpt-4o-mini
+      GROWW_PULSE_LOOKBACK_WEEKS: '12'
+      GROWW_PULSE_RECIPIENT_ALIAS: ${{ secrets.GROWW_PULSE_RECIPIENT_ALIAS }}
+      GROWW_GOOGLE_DOC_ID: 1nXAvB9oRsy_CZHHwRF_Bsig26dTQMLRumnclGGmj_kA
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Validate the target Google Doc ID
+        id: doc
+        run: |
+          if [ -z "$GROWW_GOOGLE_DOC_ID" ]; then
+            echo "GROWW_GOOGLE_DOC_ID is not configured." >&2
+            exit 1
+          fi
+          echo "doc_id=$GROWW_GOOGLE_DOC_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run weekly pulse generation
+        env:
+          GROWW_PULSE_DRY_RUN: 'false'
+          GROWW_PULSE_APP_ID: com.nextbillion.groww
+        run: |
+          groww-pulse run --weeks 12 --doc-id "$GROWW_GOOGLE_DOC_ID"
