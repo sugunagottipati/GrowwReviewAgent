@@ -6,7 +6,10 @@ let reviews=[
  {rating:3,text:'The interface is simple, but my P&L takes too long to update.',theme:'Portfolio sync',sentiment:'mixed',date:'28 Aug 2026'},
  {rating:4,text:'Great app for mutual funds. Would love clearer status for withdrawals.',theme:'Withdrawals',sentiment:'mixed',date:'24 Aug 2026'}
 ];
-const API_BASE_URL=(window.GROWW_API_URL||'').replace(/\/$/,'');
+const configuredApiUrl=(window.GROWW_API_URL||'').trim();
+const API_BASE_URL=configuredApiUrl&&!/^https?:\/\//i.test(configuredApiUrl)
+ ? `https://${configuredApiUrl}`
+ : configuredApiUrl.replace(/\/$/,'');
 const $=s=>document.querySelector(s);const $$=s=>document.querySelectorAll(s);
 function apiUrl(path){return `${API_BASE_URL}${path}`}
 function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800)}
