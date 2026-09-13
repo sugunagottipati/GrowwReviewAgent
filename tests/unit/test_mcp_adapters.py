@@ -248,6 +248,27 @@ def test_http_mcp_tool_caller_uses_mcp_protocol_payload(monkeypatch):
     assert result["structuredContent"]["status"] == "ok"
 
 
+def test_http_mcp_tool_caller_handles_sse_response(monkeypatch):
+    """Some MCP servers stream JSON-RPC over SSE instead of returning JSON directly."""
+
+    class DummyResponse:
+        def read(self):
+            return (
+                "event: message\n"
+                'data: {"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"ok"}],"structuredContent":{"status":"ok"}}}\n\n'
+            ).encode("utf-8")
+
+    def fake_urlopen(request, timeout=None):
+        return DummyResponse()
+
+    monkeypatch.setattr(http_mcp_client, "urlopen", fake_urlopen)
+
+    caller = http_mcp_client.make_http_mcp_tool_caller("https://example.com/mcp")
+    result = caller("google_docs", "google_docs_append_content", {"documentId": "doc_123"})
+
+    assert result["structuredContent"]["status"] == "ok"
+
+
 class TestMCPToolError:
     """Tests for MCPToolError exception."""
 
