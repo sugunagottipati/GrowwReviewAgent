@@ -69,6 +69,7 @@ def make_http_mcp_tool_caller(endpoint: str):
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
+            "MCP-Protocol-Version": "2025-06-18",
         }
         token = os.getenv("GROWW_PULSE_MCP_BEARER_TOKEN")
         if token:

@@ -311,6 +311,11 @@ def test_http_mcp_tool_caller_uses_mcp_protocol_payload(monkeypatch):
         "arguments": {"documentId": "doc_123", "content": "hello"},
     }
     assert seen["headers"]["Accept"] == "application/json, text/event-stream"
+    assert next(
+        value
+        for key, value in seen["headers"].items()
+        if key.lower() == "mcp-protocol-version"
+    ) == "2025-06-18"
     assert "server" not in seen["payload"]["params"]
     assert result["structuredContent"]["status"] == "ok"
 
