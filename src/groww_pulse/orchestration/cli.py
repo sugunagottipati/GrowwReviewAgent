@@ -233,6 +233,16 @@ def handle_api(args: argparse.Namespace) -> int:
     return 0
 
 
+def parse_api_port(value: str) -> int:
+    """Resolve Railway's literal PORT token when no shell expands it."""
+    if value == "$PORT":
+        value = os.getenv("PORT", "8000")
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid port: {value}") from exc
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="groww-pulse",
@@ -347,7 +357,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     api_parser = subparsers.add_parser("api", help="Serve the live pulse API and scheduler")
     api_parser.add_argument("--host", default="0.0.0.0", help="Bind address")
-    api_parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "8000")), help="Port")
+    api_parser.add_argument(
+        "--port", type=parse_api_port, default=int(os.getenv("PORT", "8000")), help="Port"
+    )
 
     return parser
 
