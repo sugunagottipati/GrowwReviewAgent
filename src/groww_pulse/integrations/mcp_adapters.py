@@ -135,7 +135,11 @@ class MCPDocsAdapter(DocsPort):
             
             # Validate response
             if not normalized.get("success") or "documentId" not in normalized:
-                error_msg = "MCP docs append returned incomplete response (missing success or documentId)"
+                provider_error = normalized.get("error")
+                if isinstance(provider_error, dict) and provider_error.get("message"):
+                    error_msg = f"MCP docs append failed: {provider_error['message']}"
+                else:
+                    error_msg = "MCP docs append returned incomplete response (missing success or documentId)"
                 StructuredLogger.error(
                     "mcp_docs_append_failed",
                     error=error_msg,

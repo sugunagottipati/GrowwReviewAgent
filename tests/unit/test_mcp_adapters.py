@@ -70,6 +70,24 @@ class TestMCPDocsAdapter:
                 existing_document_id="doc_123",
             )
 
+    def test_append_document_surfaces_mcp_error(self) -> None:
+        """Test structured MCP provider errors are preserved for diagnosis."""
+
+        def mock_tool_caller(server: str, tool: str, args: dict) -> dict:
+            return {
+                "success": False,
+                "error": {"code": "AUTHORIZATION_DENIED", "message": "Access denied."},
+            }
+
+        adapter = MCPDocsAdapter(mock_tool_caller)
+
+        with pytest.raises(MCPToolError, match="Access denied"):
+            adapter.create_or_update_document(
+                title="Test",
+                content="content",
+                existing_document_id="doc_123",
+            )
+
     def test_append_document_accepts_structured_content_wrapper(self) -> None:
         """The transport returns result.structuredContent; adapters normalize it."""
 
